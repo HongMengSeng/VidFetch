@@ -1,0 +1,184 @@
+name: Build & Push Docker Image
+
+on:
+  workflow_call:
+    inputs:
+      run_mode:
+        description: "Build mode: test publishes an isolated preview; release publishes a versioned image."
+        required: true
+        type: string
+      version:
+        description: "SemVer to embed and publish."
+        required: true
+        type: string
+      release_channel:
+        description: "Release channel: test, beta, or latest."
+        required: true
+        type: string
+      source_sha:
+        description: "Full commit SHA to build. Defaults to the caller commit."
+        required: false
+        type: string
+        default: ""
+    outputs:
+      image:
+        description: "Primary GHCR image name without a tag."
+        value: ${{ jobs.docker.outputs.image }}
+      tag:
+        description: "Primary image tag produced by this run."
+        value: ${{ jobs.docker.outputs.tag }}
+      image_ref:
+        description: "Primary GHCR image reference including its tag."
+        value: ${{ jobs.docker.outputs.image_ref }}
+      digest:
+        description: "Published multi-architecture image digest."
+        value: ${{ jobs.docker.outputs.digest }}
+      source_sha:
+        description: "Resolved commit SHA used for the build."
+        value: ${{ jobs.docker.outputs.source_sha }}
+    secrets:
+      DOCKERHUB_USERNAME:
+        description: "Optional Docker Hub username used only for release builds."
+        required: false
+      DOCKERHUB_TOKEN:
+        description: "Optional Docker Hub access token used only for release builds."
+        required: false
+
+env:
+  DOCKERHUB_IMAGE: caorushizi/mediago
+
+concurrency:
+  group: docker-${{ inputs.run_mode }}-${{ inputs.run_mode == 'release' && inputs.version || inputs.source_sha || github.sha }}
+  cancel-in-progress: ${{ inputs.run_mode == 'test' }}
+
+jobs:
+  docker:
+    name: Build and push multi-arch image
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.parameters.outputs.image }}
+      tag: ${{ steps.parameters.outputs.tag }}
+      image_ref: ${{ steps.parameters.outputs.image_ref }}
+      digest: ${{ steps.build.outputs.digest }}
+      source_sha: ${{ steps.parameters.outputs.source_sha }}
+
+    steps:
+      - name: Checkout source commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: go-task/setup-task@v1
+        with:
+          version: "3.51.1"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Validate inputs
+        env:
+          RUN_MODE: ${{ inputs.run_mode }}
+          VERSION: ${{ inputs.version }}
+          RELEASE_CHANNEL: ${{ inputs.release_channel }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: task ci:docker:validate-inputs
+
+      - name: Resolve source, version, image, and tag
+        id: parameters
+        env:
+          RUN_MODE: ${{ inputs.run_mode }}
+          VERSION: ${{ inputs.version }}
+          RELEASE_CHANNEL: ${{ inputs.release_channel }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: task ci:docker:resolve-parameters
+
+      - name: Verify preview package is private
+        if: inputs.run_mode == 'test'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+          GITHUB_API_URL: ${{ github.api_url }}
+        run: task ci:docker:verify-preview-private
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Detect Docker Hub credentials for release
+        id: dockerhub
+        if: inputs.run_mode == 'release'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: task ci:docker:detect-dockerhub
+
+      - name: Login to Docker Hub for release
+        if: steps.dockerhub.outputs.enabled == 'true'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Resolve image targets
+        id: targets
+        env:
+          PRIMARY_IMAGE: ${{ steps.parameters.outputs.image }}
+          DOCKERHUB_ENABLED: ${{ steps.dockerhub.outputs.enabled || 'false' }}
+          DOCKERHUB_IMAGE: ${{ steps.parameters.outputs.dockerhub_image }}
+        run: task ci:docker:resolve-targets
+
+      - name: Generate image metadata
+        id: metadata
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ steps.targets.outputs.images }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ steps.parameters.outputs.tag }}
+            type=raw,value=latest,enable=${{ inputs.run_mode == 'release' && inputs.release_channel == 'latest' }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ inputs.version }}
+            org.opencontainers.image.revision=${{ steps.parameters.outputs.source_sha }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache-from: type=gha,scope=mediago-${{ inputs.run_mode }}
+          cache-to: type=gha,mode=max,scope=mediago-${{ inputs.run_mode }}
+
+      - name: Build summary
+        env:
+          RUN_MODE: ${{ inputs.run_mode }}
+          VERSION: ${{ inputs.version }}
+          RELEASE_CHANNEL: ${{ inputs.release_channel }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          RESOLVED_SOURCE_SHA: ${{ steps.parameters.outputs.source_sha }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          PUBLISHED_TAGS: ${{ steps.metadata.outputs.tags }}
+          IMAGE_REF: ${{ steps.parameters.outputs.image_ref }}
+        run: task ci:docker:write-summary

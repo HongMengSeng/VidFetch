@@ -1,0 +1,188 @@
+<div align="center">
+  <h1>MediaGo</h1>
+  <a href="https://downloader.caorushizi.cn/guides.html?form=github">快速开始</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="https://downloader.caorushizi.cn?form=github">官网</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="https://downloader.caorushizi.cn/documents.html?form=github">文档</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="https://github.com/caorushizi/mediago/discussions">Discussions</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="https://discord.gg/yxWBVRWGqM">Discord</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="https://www.reddit.com/r/MediaGo_Studio/">Reddit</a>
+  <br>
+
+<a href="https://github.com/caorushizi/mediago/blob/master/README.md">English</a>
+<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+<a href="https://github.com/caorushizi/mediago/blob/master/README.jp.md">日本語</a>
+<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+<a href="https://github.com/caorushizi/mediago/blob/master/README.it.md">Italiano</a>
+<br>
+
+  <img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/caorushizi/mediago/total">
+  <img alt="GitHub Downloads (all assets, latest release)" src="https://img.shields.io/github/downloads/caorushizi/mediago/latest/total">
+  <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/caorushizi/mediago">
+  <img alt="GitHub forks" src="https://img.shields.io/github/forks/caorushizi/mediago">
+  <img alt="GitCode" src="https://gitcode.com/caorushizi/mediago/star/badge.svg">
+  <br>
+
+  <a href="https://trendshift.io/repositories/11083" target="_blank">
+    <img src="https://trendshift.io/api/badge/repositories/11083" alt="caorushizi%2Fmediago | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/>
+  </a>
+
+  <hr />
+</div>
+
+跨平台视频下载器，内置嗅探 —— 打开网页、选一下想要的资源、保存完事。不用抓包、不用折腾浏览器插件、不用面对命令行。
+
+应用界面目前内置中文、英文和意大利语。
+
+## ✨ 主打功能
+
+### 🌐 浏览器扩展（Chrome / Edge）
+
+浏览网页时遇到想下的视频 → 点扩展图标 → 一键发到 MediaGo。自动识别页面里的可下载资源，工具栏图标显示检测到的数量，主流视频网站（包括 YouTube、Bilibili 等）都能覆盖。扩展随桌面端安装包一起打包，在 **设置 → 更多设置 → 浏览器扩展目录** 就能找到安装文件夹。
+
+### 🎬 支持 YouTube 和 1000+ 站点
+
+底层用的是 yt-dlp。支持 YouTube、Twitter/X、Instagram、Reddit 等 [一千多个视频站点](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)。
+
+### 🦞 让 AI 助手帮你下载 —— OpenClaw Skill
+
+在用 Claude Code、Cursor 等 AI 编程助手？装上 MediaGo Skill 后直接跟 AI 说"帮我下载这个视频：&lt;链接&gt;"就行，剩下的交给 AI。
+
+```shell
+npx clawhub@latest install mediago
+```
+
+### 🔌 可以和其他工具联动
+
+MediaGo 提供一整套 HTTP 接口 —— 脚本、自动化工具、其他 App 都能直接调用 MediaGo 创建下载任务、查询进度、管理列表。浏览器扩展就是通过这套接口和桌面端对话的，你也可以接入自己的工作流。
+
+### 🎞️ 内置格式转换
+
+下载完成后可以直接在 MediaGo 里转换格式、选画质，不用再打开别的软件。
+
+### 🐳 Docker 一键部署
+
+服务器端一条命令部署，局域网内任意设备都能打开 Web 界面：
+
+```shell
+docker run -d --name mediago -p 8899:8899 -v /path/to/mediago:/app/mediago caorushizi/mediago:3.5.0
+```
+
+在 [Docker Hub](https://hub.docker.com/r/caorushizi/mediago) 和 GHCR（`ghcr.io/caorushizi/mediago`）上同步发布 —— 同一份镜像，哪个源更快用哪个。支持 Intel / AMD (amd64) 和 ARM (arm64) 两种架构。桌面版同时监听 `127.0.0.1` 和局域网 IP，同一个 Wi-Fi 下的手机、平板可以直接打开 Web 界面。
+
+## 📷 软件截图
+
+![首页](./images/home.png)
+
+![首页 — 深色模式](./images/home-dark.png)
+
+![设置](./images/settings.png)
+
+![资源提取](./images/browser.png)
+
+## 📥 下载
+
+### v3.5.0（正式版）
+
+- [Windows — 安装版](https://github.com/caorushizi/mediago/releases/download/v3.5.0/mediago-community-setup-win32-x64-3.5.0.exe)
+- [Windows — 便携版](https://github.com/caorushizi/mediago/releases/download/v3.5.0/mediago-community-portable-win32-x64-3.5.0.exe)
+- [macOS — Apple Silicon (arm64)](https://github.com/caorushizi/mediago/releases/download/v3.5.0/mediago-community-setup-darwin-arm64-3.5.0.dmg)
+- [macOS — Intel (x64)](https://github.com/caorushizi/mediago/releases/download/v3.5.0/mediago-community-setup-darwin-x64-3.5.0.dmg)
+- [Linux (deb)](https://github.com/caorushizi/mediago/releases/download/v3.5.0/mediago-community-setup-linux-amd64-3.5.0.deb)
+- [**Docker Hub**](https://hub.docker.com/r/caorushizi/mediago)：`docker run -d --name mediago -p 8899:8899 -v /path/to/mediago:/app/mediago caorushizi/mediago:3.5.0`
+- **GHCR**：`docker run -d --name mediago -p 8899:8899 -v /path/to/mediago:/app/mediago ghcr.io/caorushizi/mediago:3.5.0`
+
+查看历史版本请移步 [GitHub Releases](https://github.com/caorushizi/mediago/releases)。
+
+### 🪄 宝塔面板一键部署 Docker
+
+1. 安装宝塔面板，前往 [宝塔面板官网](https://www.bt.cn/new/download.html?r=dk_mediago) 选择正式版的脚本下载安装
+2. 登录宝塔面板，在菜单栏中点击 **Docker**，首次进入会提示安装 Docker 服务，点击立即安装并按提示完成
+3. 在应用商店中找到 **MediaGo**，点击安装，配置域名等基本信息即可
+
+## 📝 v3.5.0 更新要点
+
+- **🌐 浏览器扩展**：任意网站一键嗅探视频、一键发到 MediaGo
+- **🎬 YouTube + 1000+ 站点**：集成 yt-dlp
+- **🦞 OpenClaw Skill**：通过 AI 编程助手下载视频
+- **🔌 开放 HTTP 接口**：接入脚本、自动化工具和其他应用
+- **🎞️ 内置格式转换**：选输出格式和画质
+- **🐳 Docker 部署简化**：挂载一个目录即可，多架构镜像已迁至 GHCR
+- **⚡ 启动更快**：后端重写，资源占用更低，内置视频播放器
+
+## 🧑‍💻 从源码开发
+
+仓库使用 [Task](https://taskfile.dev/) v3.51.1 及以上的 v3 版本编排任务。在
+macOS、Linux 或 Windows（PowerShell）中，可以通过 Go 工具链安装最新兼容的
+v3 版本；请确保 Go 的二进制目录已经加入 `PATH`，然后验证版本：
+
+```shell
+go install github.com/go-task/task/v3/cmd/task@latest
+task --version
+```
+
+克隆后请在仓库根目录执行以下标准启动流程：
+
+```shell
+git clone https://github.com/caorushizi/mediago.git
+cd mediago
+task setup
+task dev:all
+```
+
+`task setup` 会同时安装 Node 工作区依赖和应用所需的运行时工具。运行时依赖的
+版本只来自 `packages/tooling/manifests/runtime-deps.json`，不会自动升级；单独运行 `pnpm install`
+只会安装 Node 工作区依赖，不会安装 BBDown 等运行时二进制文件。
+
+开发、构建、测试和发布都以 `task` 命令作为统一入口；Turbo、pnpm 的 `:raw`
+脚本、Go 命令以及 `packages/tooling` 中的工具只作为内部实现，不需要日常直接调用。
+
+只开发 Web 端时使用 `task dev:web`，只开发桌面端时使用 `task dev:electron`。
+可部署的 Web 版本只通过 Docker 镜像交付，不再维护独立的 Node.js Server 包。
+提交改动前请运行：
+
+```shell
+task check
+task test
+```
+
+## 🛠️ 技术栈
+
+[![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://react.dev/)
+[![Electron](https://img.shields.io/badge/Electron-191970?logo=electron&logoColor=white)](https://www.electronjs.org)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](https://vitejs.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-000?logo=shadcnui&logoColor=white)](https://ui.shadcn.com/)
+[![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white)](https://go.dev/)
+
+## 🙏 鸣谢
+
+- [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE)
+- [BBDown](https://github.com/nilaoda/BBDown)
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+- [aria2](https://aria2.github.io/)
+- [mediago-core](https://github.com/caorushizi/mediago-core)
+
+## ⚖️ 免责声明
+
+> **本项目仅供学习和研究使用，请勿用于任何商业或非法用途。**
+>
+> 1. 本项目提供的所有代码和功能仅作为学习流媒体技术的参考，使用者需自行遵守所在地区的法律法规。
+> 2. 使用本项目下载的任何内容，其版权归原始内容所有者所有。使用者应在下载后 24 小时内删除，或取得版权方授权。
+> 3. 本项目开发者不对使用者的任何行为承担责任，包括但不限于：下载受版权保护的内容、对第三方平台造成的影响等。
+> 4. 禁止将本项目用于大规模抓取、破坏平台服务或任何侵犯他人合法权益的行为。
+> 5. 使用本项目即表示您已阅读并同意本免责声明。如不同意，请立即停止使用并删除本项目。
+
+---
+
+> 想从源码构建？见 [CONTRIBUTING.md](./CONTRIBUTING.md)（英文）。
+>
+> 想为 MediaGo 做翻译？见 [TRANSLATION.md](./TRANSLATION.md)（英文）。
+
+尾注: 感谢[吾爱破解论坛](https://www.52pojie.cn/)  
+lp_Zain@www.52pojie.cn

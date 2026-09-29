@@ -1,0 +1,291 @@
+name: Build MediaGo Desktop
+
+on:
+  workflow_call:
+    inputs:
+      run_mode:
+        description: "Build mode: test only produces artifacts; release validates a committed version."
+        required: true
+        type: string
+      version:
+        description: "SemVer to embed in the desktop app and artifact names."
+        required: true
+        type: string
+      release_channel:
+        description: "Release channel: test, beta, or latest."
+        required: true
+        type: string
+      source_sha:
+        description: "Full commit SHA to build."
+        required: true
+        type: string
+      test_release_id:
+        description: "Owned draft Release ID for private test stages."
+        required: false
+        type: string
+        default: ""
+      test_build_target:
+        description: "Original top-level target used to validate the test reservation."
+        required: false
+        type: string
+        default: ""
+    secrets:
+      APP_TD_APPID:
+        description: "Optional application telemetry identifier."
+        required: false
+      CSC_LINK:
+        description: "Base64-encoded Developer ID Application certificate."
+        required: true
+      CSC_KEY_PASSWORD:
+        description: "Password for the Developer ID certificate."
+        required: true
+      APPLE_ID:
+        description: "Apple Developer account used for notarization."
+        required: true
+      APPLE_APP_SPECIFIC_PASSWORD:
+        description: "Apple app-specific password used for notarization."
+        required: true
+      APPLE_TEAM_ID:
+        description: "Apple Developer Team ID used for notarization."
+        required: true
+    outputs:
+      artifact_prefix:
+        description: "Prefix shared by all four uploaded desktop artifacts."
+        value: ${{ jobs.prepare.outputs.artifact_prefix }}
+      source_sha:
+        description: "Verified commit SHA that was built."
+        value: ${{ jobs.prepare.outputs.source_sha }}
+      version:
+        description: "Version embedded in the build artifacts."
+        value: ${{ jobs.prepare.outputs.version }}
+
+# This workflow only builds. Tagging and GitHub Release publication belong to
+# the top-level release workflow after every requested target succeeds.
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-build-${{ inputs.run_mode }}-${{ inputs.version }}-${{ inputs.source_sha }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Validate desktop build request
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      artifact_prefix: ${{ steps.metadata.outputs.artifact_prefix }}
+      source_sha: ${{ steps.verify.outputs.source_sha }}
+      version: ${{ inputs.version }}
+    steps:
+      - name: Check out requested commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: go-task/setup-task@v1
+        with:
+          version: "3.51.1"
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24.14.0"
+
+      - name: Validate inputs
+        env:
+          REQUESTED_RUN_MODE: ${{ inputs.run_mode }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_CHANNEL: ${{ inputs.release_channel }}
+          REQUESTED_SOURCE_SHA: ${{ inputs.source_sha }}
+          REQUESTED_TEST_RELEASE_ID: ${{ inputs.test_release_id }}
+          REQUESTED_TEST_BUILD_TARGET: ${{ inputs.test_build_target }}
+        run: task ci:desktop:validate-request
+
+      - name: Verify source and committed release version
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_RUN_MODE: ${{ inputs.run_mode }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_CHANNEL: ${{ inputs.release_channel }}
+          REQUESTED_SOURCE_SHA: ${{ inputs.source_sha }}
+          REQUESTED_TEST_RELEASE_ID: ${{ inputs.test_release_id }}
+          REQUESTED_TEST_BUILD_TARGET: ${{ inputs.test_build_target }}
+        run: task ci:desktop:verify-source
+
+      - name: Resolve artifact prefix
+        id: metadata
+        env:
+          REQUESTED_RUN_MODE: ${{ inputs.run_mode }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          VERIFIED_SOURCE_SHA: ${{ steps.verify.outputs.source_sha }}
+        run: task ci:desktop:artifact-prefix
+
+  build_release:
+    name: Build official desktop (${{ matrix.runner }})
+    needs: prepare
+    if: inputs.run_mode == 'release'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - windows-latest
+          - macos-15
+          - macos-15-intel
+          - ubuntu-latest
+    steps:
+      - name: Check out verified source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: go-task/setup-task@v1
+        with:
+          version: "3.51.1"
+
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24.14.0"
+          cache: "pnpm"
+
+      - name: Apply build version
+        env:
+          BUILD_VERSION: ${{ inputs.version }}
+          RUN_MODE: ${{ inputs.run_mode }}
+        run: task ci:desktop:apply-version
+
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.25.0"
+          cache-dependency-path: apps/core/go.sum
+
+      - name: Build desktop artifacts
+        run: task ci:desktop:release
+        env:
+          APP_TD_APPID: ${{ inputs.run_mode == 'release' && secrets.APP_TD_APPID || '' }}
+          CSC_LINK: ${{ runner.os == 'macOS' && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.CSC_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ runner.os == 'macOS' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
+
+      - name: Upload desktop artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ needs.prepare.outputs.artifact_prefix }}-${{ matrix.runner }}
+          path: |
+            apps/electron/release/*.exe
+            apps/electron/release/*.dmg
+            apps/electron/release/*.zip
+            apps/electron/release/*.deb
+            apps/electron/release/*.blockmap
+            apps/electron/release/*.yml
+            !apps/electron/release/builder-*.yml
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+          include-hidden-files: false
+
+  build_test:
+    name: Build private test desktop (${{ matrix.runner }})
+    needs: prepare
+    if: inputs.run_mode == 'test'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - windows-latest
+          - macos-15
+          - macos-15-intel
+          - ubuntu-latest
+    steps:
+      - name: Check out verified source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: go-task/setup-task@v1
+        with:
+          version: "3.51.1"
+
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24.14.0"
+          cache: "pnpm"
+
+      - name: Apply private build version
+        env:
+          BUILD_VERSION: ${{ inputs.version }}
+          RUN_MODE: test
+        run: task ci:desktop:apply-version
+
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.25.0"
+          cache-dependency-path: apps/core/go.sum
+
+      - name: Build private desktop artifacts
+        run: task ci:desktop:release
+        env:
+          APP_TD_APPID: ""
+          CSC_LINK: ${{ runner.os == 'macOS' && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.CSC_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ runner.os == 'macOS' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
+
+      - name: Create private staging archive
+        id: stage
+        env:
+          DESKTOP_RUNNER: ${{ matrix.runner }}
+        run: task ci:desktop:create-test-stage
+
+      - name: Upload stage directly to private draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TEST_RELEASE_ID: ${{ inputs.test_release_id }}
+          STAGE_ARCHIVE: ${{ steps.stage.outputs.archive }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+          VERSION: ${{ inputs.version }}
+          BUILD_TARGET: ${{ inputs.test_build_target }}
+        run: task ci:desktop:upload-test-stage
