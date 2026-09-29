@@ -361,6 +361,7 @@ export interface FavoriteItem {
   url: string;
   icon?: string | null;
   iconStatus: FavoriteIconStatus;
+  folder?: string | null;
   createdDate: string;
   updatedDate: string;
 }
@@ -378,6 +379,15 @@ export interface AddFavoriteParams {
   title: string;
   url: string;
   icon?: string;
+  folder?: string;
+}
+
+/**
+ * Parameters for updating a favorite's title and/or folder.
+ */
+export interface UpdateFavoriteParams {
+  title?: string;
+  folder?: string;
 }
 
 /**

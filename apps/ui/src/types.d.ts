@@ -3,6 +3,7 @@ declare interface Favorite {
   title: string;
   url: string;
   icon?: string | null;
+  folder?: string | null;
   iconStatus: "unresolved" | "ready" | "missing" | "retryable";
 }
 

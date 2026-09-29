@@ -48,9 +48,10 @@ func (h *FavoriteHandler) Create(c *gin.Context) {
 		title = req.URL
 	}
 	fav, err := h.svc.AddFavorite(&service.AddFavoriteInput{
-		Title: title,
-		URL:   req.URL,
-		Icon:  req.Icon,
+		Title:  title,
+		URL:    req.URL,
+		Icon:   req.Icon,
+		Folder: req.Folder,
 	})
 	if err != nil {
 		// Duplicate URL is a normal user-facing condition, not a server
@@ -64,6 +65,36 @@ func (h *FavoriteHandler) Create(c *gin.Context) {
 			return
 		}
 		logger.Error("Failed to add favorite", zap.Error(err))
+		writeInternalError(c)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse{Success: true, Code: http.StatusOK, Message: i18n.T(c, i18n.MsgOK), Data: fav})
+}
+
+// Update changes a favorite's title and/or folder.
+func (h *FavoriteHandler) Update(c *gin.Context) {
+	id, ok := parsePositiveID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.UpdateFavoriteReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeInvalidRequest(c)
+		return
+	}
+
+	fav, err := h.svc.UpdateFavorite(id, &service.UpdateFavoriteInput{
+		Title:  req.Title,
+		Folder: req.Folder,
+	})
+	if err != nil {
+		if errors.Is(err, service.ErrFavoriteNotFound) {
+			writeFavoriteNotFound(c, id)
+			return
+		}
+		logger.Error("Failed to update favorite", zap.Int64("id", id), zap.Error(err))
 		writeInternalError(c)
 		return
 	}
@@ -132,9 +163,10 @@ func (h *FavoriteHandler) Import(c *gin.Context) {
 	inputs := make([]*service.AddFavoriteInput, 0, len(req.Favorites))
 	for _, f := range req.Favorites {
 		inputs = append(inputs, &service.AddFavoriteInput{
-			Title: f.Title,
-			URL:   f.URL,
-			Icon:  f.Icon,
+			Title:  f.Title,
+			URL:    f.URL,
+			Icon:   f.Icon,
+			Folder: f.Folder,
 		})
 	}
 

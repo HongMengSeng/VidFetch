@@ -9,7 +9,13 @@ export const addFavorite = (fav: {
   title: string;
   url: string;
   icon?: string;
+  folder?: string;
 }): Promise<Favorite> => http.post("/api/favorites", fav);
+
+export const updateFavorite = (
+  id: number,
+  patch: { title?: string; folder?: string },
+): Promise<Favorite> => http.put(`/api/favorites/${id}`, patch);
 
 export const removeFavorite = (id: number): Promise<void> =>
   http.delete(`/api/favorites/${id}`);

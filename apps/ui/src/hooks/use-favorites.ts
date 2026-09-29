@@ -3,6 +3,7 @@ import {
   getFavoritesKey,
   getFavorites,
   addFavorite as addFavApi,
+  updateFavorite as updateFavApi,
   removeFavorite as removeFavApi,
   resolveFavoriteIcon as resolveFavoriteIconApi,
 } from "@/api/favorite";
@@ -19,8 +20,17 @@ export function useFavorites() {
     title: string;
     url: string;
     icon?: string;
+    folder?: string;
   }) => {
     await addFavApi(fav);
+    mutate();
+  };
+
+  const updateFavorite = async (
+    id: number,
+    patch: { title?: string; folder?: string },
+  ) => {
+    await updateFavApi(id, patch);
     mutate();
   };
 
@@ -49,6 +59,7 @@ export function useFavorites() {
     error,
     mutate,
     addFavorite,
+    updateFavorite,
     removeFavorite,
     resolveFavoriteIcon,
   };

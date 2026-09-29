@@ -56,6 +56,7 @@ type Favorite struct {
 	URL         string             `gorm:"column:url;type:text;not null" json:"url"`
 	Icon        *string            `gorm:"column:icon;type:text" json:"icon"`
 	IconStatus  FavoriteIconStatus `gorm:"column:iconStatus;type:text;not null;default:'unresolved'" json:"iconStatus"`
+	Folder      *string            `gorm:"column:folder;type:text" json:"folder"`
 	CreatedDate time.Time          `gorm:"column:createdDate;autoCreateTime" json:"createdDate"`
 	UpdatedDate time.Time          `gorm:"column:updatedDate;autoUpdateTime" json:"updatedDate"`
 }

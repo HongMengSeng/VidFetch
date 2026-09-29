@@ -35,9 +35,10 @@ func NewFavoriteServiceWithIconResolver(repo *repo.FavoriteRepository, iconResol
 
 // AddFavoriteInput holds the input for adding a favorite.
 type AddFavoriteInput struct {
-	Title string  `json:"title"`
-	URL   string  `json:"url"`
-	Icon  *string `json:"icon"`
+	Title  string  `json:"title"`
+	URL    string  `json:"url"`
+	Icon   *string `json:"icon"`
+	Folder *string `json:"folder"`
 }
 
 // GetFavorites retrieves all favorites (sorted by creation time descending).
@@ -60,8 +61,61 @@ func (s *FavoriteService) AddFavorite(input *AddFavoriteInput) (*db.Favorite, er
 		URL:        input.URL,
 		Icon:       input.Icon,
 		IconStatus: initialFavoriteIconStatus(input.Icon),
+		Folder:     normalizeFolder(input.Folder),
 	}
 	return s.repo.Create(fav)
+}
+
+// UpdateFavoriteInput holds the optional fields for updating a favorite.
+type UpdateFavoriteInput struct {
+	Title  *string
+	Folder *string
+}
+
+// UpdateFavorite changes the title and/or folder of an existing favorite.
+func (s *FavoriteService) UpdateFavorite(id int64, input *UpdateFavoriteInput) (*db.Favorite, error) {
+	favorite, err := s.repo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if favorite == nil {
+		return nil, ErrFavoriteNotFound
+	}
+
+	updates := map[string]any{}
+	if input.Title != nil {
+		if title := strings.TrimSpace(*input.Title); title != "" {
+			updates["title"] = title
+		}
+	}
+	if input.Folder != nil {
+		if folder := normalizeFolder(input.Folder); folder != nil {
+			updates["folder"] = *folder
+		} else {
+			updates["folder"] = nil
+		}
+	}
+	if len(updates) == 0 {
+		return favorite, nil
+	}
+
+	if err := s.repo.Update(id, updates); err != nil {
+		return nil, err
+	}
+	return s.repo.FindByID(id)
+}
+
+// normalizeFolder trims a folder label and collapses empty/blank to nil so an
+// entry is treated as ungrouped rather than stored with an empty-string folder.
+func normalizeFolder(folder *string) *string {
+	if folder == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*folder)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
 }
 
 // ResolveFavoriteIcon resolves and persists an eligible favorite's icon using
@@ -115,9 +169,10 @@ func (s *FavoriteService) RemoveFavorite(id int64) error {
 
 // FavoriteExportItem is a favorite entry for export.
 type FavoriteExportItem struct {
-	Title string  `json:"title"`
-	URL   string  `json:"url"`
-	Icon  *string `json:"icon,omitempty"`
+	Title  string  `json:"title"`
+	URL    string  `json:"url"`
+	Icon   *string `json:"icon,omitempty"`
+	Folder *string `json:"folder,omitempty"`
 }
 
 // ExportFavorites exports favorites as a JSON string.
@@ -130,9 +185,10 @@ func (s *FavoriteService) ExportFavorites() (string, error) {
 	items := make([]FavoriteExportItem, 0, len(favs))
 	for _, f := range favs {
 		items = append(items, FavoriteExportItem{
-			Title: f.Title,
-			URL:   f.URL,
-			Icon:  f.Icon,
+			Title:  f.Title,
+			URL:    f.URL,
+			Icon:   f.Icon,
+			Folder: f.Folder,
 		})
 	}
 
@@ -152,6 +208,7 @@ func (s *FavoriteService) ImportFavorites(inputs []*AddFavoriteInput) error {
 			URL:        input.URL,
 			Icon:       input.Icon,
 			IconStatus: initialFavoriteIconStatus(input.Icon),
+			Folder:     normalizeFolder(input.Folder),
 		})
 	}
 	_, err := s.repo.CreateMany(favs)

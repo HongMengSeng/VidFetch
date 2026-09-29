@@ -79,6 +79,13 @@ func (r *FavoriteRepository) UpdateIcon(id int64, icon *string, status db.Favori
 		}).Error
 }
 
+// Update applies a partial update to a favorite.
+func (r *FavoriteRepository) Update(id int64, updates map[string]any) error {
+	return r.db.Model(&db.Favorite{}).
+		Where("id = ?", id).
+		Updates(updates).Error
+}
+
 // Delete removes a favorite entry.
 func (r *FavoriteRepository) Delete(id int64) error {
 	return r.db.Delete(&db.Favorite{}, id).Error

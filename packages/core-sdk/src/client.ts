@@ -33,6 +33,7 @@ import type {
   TaskListResponse,
   TaskLogResponse,
   UpdateConfigParams,
+  UpdateFavoriteParams,
 } from "./types";
 import { TaskStreamEventEmitter } from "./eventEmitter";
 
@@ -281,6 +282,16 @@ export class MediaGoClient {
     params: AddFavoriteParams,
   ): Promise<ApiResponse<FavoriteItem>> {
     return this.api.post("/api/favorites", params);
+  }
+
+  /**
+   * Updates a favorite's title and/or folder.
+   */
+  async updateFavorite(
+    id: number,
+    params: UpdateFavoriteParams,
+  ): Promise<ApiResponse<FavoriteItem>> {
+    return this.api.put(`/api/favorites/${id}`, params);
   }
 
   /**

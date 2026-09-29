@@ -20,6 +20,7 @@ export interface Favorite {
   url: string;
   icon?: string | null;
   iconStatus: FavoriteIconStatus;
+  folder?: string | null;
   createdDate: Date;
   updatedDate: Date;
 }
